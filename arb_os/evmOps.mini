@@ -149,7 +149,8 @@ public impure func evmOps_init() {
         with  { [const::EvmOp_create] = unsafecast<impure func()>(evmOp_create) }
         with  { [const::EvmOp_create2] = unsafecast<impure func()>(evmOp_create2) }
         with  { [const::EvmOp_chainId] = unsafecast<impure func()>(chainParams_chainId) }
-        with  { [const::EvmOp_gas] = unsafecast<impure func()>(evmOp_gas) };
+        with  { [const::EvmOp_gas] = unsafecast<impure func()>(evmOp_gas) }
+        with  { [const::EvmOp_ecall] = unsafecast<impure func()>(evmOp_ecall) };
 
 }
 
@@ -179,6 +180,41 @@ public impure func evmOp_stop() {
 
 public impure func evmOp_sha3(baseMemAddr: uint, nbytes: uint) -> bytes32 {
     return keccak256(evmCallStack_getTopFrameMemoryOrDie(), baseMemAddr, nbytes);
+}
+
+public impure func evmOp_ecall(baseMemAddr: uint, nbytes: uint) -> bytes32 {
+    // A copy from evmOp_call, just for test
+    let callee = address(calleeAsUint);     // truncates if necessary
+
+    // This is the same as evmOp_call, except for the callKind.
+    let resumeCodePoint = asm() func() {
+        auxpop
+        auxpop
+        dup0
+        swap2
+        swap1
+        auxpush
+        auxpush
+    };
+    let res = evmCallStack_doCall(
+        const::EVMCallType_callcode,
+        gas,
+        callee,
+        balance,
+        argsOffset,
+        argsLength,
+        retOffset,
+        retLength,
+        resumeCodePoint,
+        None<Stack>,
+        None<uint>,
+        None<impure func()>,
+    );
+    return xif let Some(success) = res {
+        success
+    } else {
+        false  // weird failure, best to return false
+    };
 }
 
 public impure func evmOp_address() -> address {
@@ -632,8 +668,8 @@ public impure func evmOp_log2(
 }
 
 public impure func evmOp_log3(
-    memAddr: uint, 
-    nbytes: uint, 
+    memAddr: uint,
+    nbytes: uint,
     topic0: uint,
     topic1: uint,
     topic2: uint,

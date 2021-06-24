@@ -950,6 +950,7 @@ pub enum AVMOpcode {
     Xset,
     Breakpoint = 0x60,
     Log,
+    Ecall,
     Send = 0x70,
     InboxPeek,
     Inbox,
@@ -981,6 +982,7 @@ impl Opcode {
         match self {
             Opcode::AVMOpcode(AVMOpcode::Log)
             | Opcode::AVMOpcode(AVMOpcode::Inbox)
+            | Opcode::AVMOpcode(AVMOpcode::Ecall)
             | Opcode::AVMOpcode(AVMOpcode::InboxPeek)
             | Opcode::AVMOpcode(AVMOpcode::Send)
             | Opcode::AVMOpcode(AVMOpcode::Rset)
@@ -1164,6 +1166,7 @@ impl AVMOpcode {
             AVMOpcode::GetPC => "getpc",
             AVMOpcode::Breakpoint => "breakpoint",
             AVMOpcode::Log => "log",
+            AVMOpcode::Ecall => "ecall",
             AVMOpcode::Send => "send",
             AVMOpcode::ErrCodePoint => "errcodept",
             AVMOpcode::PushInsn => "pushinsn",
@@ -1249,6 +1252,7 @@ impl AVMOpcode {
             0x54 => Some(AVMOpcode::Xset),
             0x60 => Some(AVMOpcode::Breakpoint),
             0x61 => Some(AVMOpcode::Log),
+            0x62 => Some(AVMOpcode::Ecall),
             0x70 => Some(AVMOpcode::Send),
             0x71 => Some(AVMOpcode::InboxPeek),
             0x72 => Some(AVMOpcode::Inbox),
@@ -1338,6 +1342,7 @@ impl AVMOpcode {
             AVMOpcode::Xset => 0x54,
             AVMOpcode::Breakpoint => 0x60,
             AVMOpcode::Log => 0x61,
+            AVMOpcode::Ecall => 0x62,
             AVMOpcode::Send => 0x70,
             AVMOpcode::InboxPeek => 0x71,
             AVMOpcode::Inbox => 0x72,

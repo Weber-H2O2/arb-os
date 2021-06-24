@@ -1294,6 +1294,7 @@ impl Machine {
                 AVMOpcode::Xset => 41,
                 AVMOpcode::Breakpoint => 100,
                 AVMOpcode::Log => 100,
+                AVMOpcode::Ecall => 100,
                 AVMOpcode::Send => 100,
                 AVMOpcode::InboxPeek => 40,
                 AVMOpcode::Inbox => 40,
@@ -1980,6 +1981,13 @@ impl Machine {
                     }
                     AVMOpcode::Log => {
                         let val = self.stack.pop(&self.state)?;
+                        self.runtime_env.push_log(val);
+                        self.incr_pc();
+                        Ok(true)
+                    }
+                    AVMOpcode::Ecall => {
+                        let val = self.stack.pop(&self.state)?;
+                        eprintln!("AVMOpcode::Ecall is called: {}", val);
                         self.runtime_env.push_log(val);
                         self.incr_pc();
                         Ok(true)
