@@ -183,38 +183,8 @@ public impure func evmOp_sha3(baseMemAddr: uint, nbytes: uint) -> bytes32 {
 }
 
 public impure func evmOp_ecall(baseMemAddr: uint, nbytes: uint) -> bytes32 {
-    // A copy from evmOp_call, just for test
-    let callee = address(calleeAsUint);     // truncates if necessary
-
-    // This is the same as evmOp_call, except for the callKind.
-    let resumeCodePoint = asm() func() {
-        auxpop
-        auxpop
-        dup0
-        swap2
-        swap1
-        auxpush
-        auxpush
-    };
-    let res = evmCallStack_doCall(
-        const::EVMCallType_callcode,
-        gas,
-        callee,
-        balance,
-        argsOffset,
-        argsLength,
-        retOffset,
-        retLength,
-        resumeCodePoint,
-        None<Stack>,
-        None<uint>,
-        None<impure func()>,
-    );
-    return xif let Some(success) = res {
-        success
-    } else {
-        false  // weird failure, best to return false
-    };
+    // A copy from evmOp_sha3, just for test
+    return keccak256(evmCallStack_getTopFrameMemoryOrDie(), baseMemAddr, nbytes);
 }
 
 public impure func evmOp_address() -> address {
