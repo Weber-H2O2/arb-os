@@ -27,7 +27,6 @@ use chainParameters::chainParams_chainId;
 use gasAccounting::getGasLimitPerTx;
 
 use evmOps::evmOps_trampoline;
-use evmOps::evmOp_ecall;
 
 use evmOps::evmOp_address;
 use evmOps::evmOp_balance;
@@ -63,7 +62,6 @@ use evmOps::evmOp_returndatacopy;
 use evmOps::evmOp_revert_knownPc;
 use evmOps::evmOp_selfdestruct;
 use evmOps::evmOp_sha3;
-use evmOps::evmOp_ecall;
 use evmOps::evmOp_sload;
 use evmOps::evmOp_sstore;
 use evmOps::evmOp_staticcall;
@@ -200,7 +198,7 @@ func unreachableAfterOpcode(opcode: uint) -> bool {
         || ((opcode >= 0x0c) && (opcode <= 0x0f))  // invalid
         || (opcode == 0x1e)  // invalid
         || (opcode == 0x1f)  // invalid
-        || ((opcode > 0x21) && (opcode <= 0x2f)) // invalid
+        || ((opcode >= 0x21) && (opcode <= 0x2f)) // invalid
         || ((opcode >= 0x48) && (opcode <= 0x4f)) // invalid
         || (opcode == 0x56)  // JUMP
         || ((opcode >= 0x5c) && (opcode <= 0x5f)) // invalid
@@ -275,9 +273,6 @@ func unreachableAfterOpcode(opcode: uint) -> bool {
                             if (opcode < 0x33) {
                                 if (opcode == 0x20) { // SHA3
                                     code = pushEvmInsnCall(const::EvmOp_sha3, code);
-                                } elseif (opcode == 0x21) { // ECALL
-                                    //code = pushEvmInsnCall(const::EvmOp_ecall, code);
-                                    code = pushInstruction(const::AVM_ecall, code);
                                 } elseif (opcode == 0x30) { // ADDRESS
                                     code = pushEvmInsnCall(const::EvmOp_address, code);
                                 } elseif (opcode == 0x31) { // BALANCE
@@ -661,7 +656,7 @@ impure func pushEvmInsnCall(evmOpNum: uint, code: AvmCodePoint) -> AvmCodePoint 
 func isKnownOpcode(opcode: uint) -> bool {  // return true iff opcode is a known EVM opcode
     return ( (opcode >= 0x00) && (opcode <= 0x0b) )
         || ( (opcode >= 0x10) && (opcode <= 0x1d) )
-        || (opcode == 0x20 || opcode == 0x21)
+        || (opcode == 0x20)
         || ( (opcode >= 0x30) && (opcode <= 0x45) )
         || ( (opcode >= 0x50) && (opcode <= 0x5b) )
         || ( (opcode >= 0x60) && (opcode <= 0xa4) )
