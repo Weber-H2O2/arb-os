@@ -1078,6 +1078,7 @@ impl Opcode {
             "ecpairing" => Opcode::AVMOpcode(AVMOpcode::EcPairing),
             "addmod" => Opcode::AVMOpcode(AVMOpcode::AddMod),
             "mulmod" => Opcode::AVMOpcode(AVMOpcode::MulMod),
+            "ecall" => Opcode::AVMOpcode(AVMOpcode::Ecall),
             _ => {
                 panic!("opcode not supported in asm segment: {}", name);
             }

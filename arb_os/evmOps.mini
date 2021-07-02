@@ -149,8 +149,7 @@ public impure func evmOps_init() {
         with  { [const::EvmOp_create] = unsafecast<impure func()>(evmOp_create) }
         with  { [const::EvmOp_create2] = unsafecast<impure func()>(evmOp_create2) }
         with  { [const::EvmOp_chainId] = unsafecast<impure func()>(chainParams_chainId) }
-        with  { [const::EvmOp_gas] = unsafecast<impure func()>(evmOp_gas) }
-        with  { [const::EvmOp_ecall] = unsafecast<impure func()>(evmOp_ecall) };
+        with  { [const::EvmOp_gas] = unsafecast<impure func()>(evmOp_gas) };
 
 }
 
@@ -179,11 +178,6 @@ public impure func evmOp_stop() {
 }
 
 public impure func evmOp_sha3(baseMemAddr: uint, nbytes: uint) -> bytes32 {
-    return keccak256(evmCallStack_getTopFrameMemoryOrDie(), baseMemAddr, nbytes);
-}
-
-public impure func evmOp_ecall(baseMemAddr: uint, nbytes: uint) -> bytes32 {
-    // A copy from evmOp_sha3, just for test
     return keccak256(evmCallStack_getTopFrameMemoryOrDie(), baseMemAddr, nbytes);
 }
 

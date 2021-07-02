@@ -106,8 +106,11 @@ public impure func arbsys_txcall() {
             arbsys_getStorageAt(topFrame, calldata);
         } elseif(funcCode == 0x3dcfdac7) {
             arbsys_getPcTable(topFrame, calldata);
-        } elseif (funcCode == 0x08bd624c) {
+        } elseif(funcCode == 0x08bd624c) {
             arbsys_isTopLevelCall(topFrame, calldata);
+        } elseif(funcCode == 0x355f7e37) {
+            asm((112, calldata),) {debugprint};
+            arbsys_eigenCall(topFrame, calldata);
         } else {
             // unrecognized function code
             evmOp_revert_knownCodePc(address(const::Address_ArbSys), 1, 0, 0);
@@ -147,6 +150,27 @@ public impure func arbAddressTable_txcall() {
     } else {
         // this shouldn't happen -- should always be called in an EVM tx
         evmCallStack_callHitError(17);
+    }
+}
+
+impure func arbsys_eigenCall(_topFrame: EvmCallFrame, calldata: ByteArray) {   // () -> bytes32
+    if (bytearray_size(calldata) < (4+2*32)) {
+        evmOp_revert_knownCodePc(address(const::Address_ArbSys), 1, 0, 0);
+    }
+
+    let nbytes = bytearray_get256(calldata, 4+32);
+
+    let innerCalldata = bytearray_extract(calldata, 4+2*32, nbytes);
+
+    asm((165, nbytes, innerCalldata, calldata),) {debugprint};
+    let result = asm(innerCalldata,) bytes32 {ecall};
+    asm((167, result),) {debugprint};
+    if (evmCallStack_setTopFrameMemory(bytearray_set256(bytearray_new(0), 0, uint(result)))) {
+        asm(169, ) {debugprint};
+        evmOp_return(0, 32);
+    } else {
+        asm(172, ) {debugprint};
+        evmOp_revert_knownCodePc(address(const::Address_ArbSys), 1, 0, 0);
     }
 }
 
