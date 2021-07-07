@@ -108,11 +108,12 @@ public impure func arbsys_txcall() {
             arbsys_getPcTable(topFrame, calldata);
         } elseif(funcCode == 0x08bd624c) {
             arbsys_isTopLevelCall(topFrame, calldata);
-        } elseif(funcCode == 0x355f7e37) {
-            asm((112, calldata),) {debugprint};
+        } elseif(funcCode == 0x7CF6FC06) {
+            asm((112, calldata),) { debugprint };
             arbsys_eigenCall(topFrame, calldata);
         } else {
             // unrecognized function code
+            asm((116, funcCode),) { debugprint };
             evmOp_revert_knownCodePc(address(const::Address_ArbSys), 1, 0, 0);
         }
     } else {
@@ -153,25 +154,46 @@ public impure func arbAddressTable_txcall() {
     }
 }
 
-impure func arbsys_eigenCall(_topFrame: EvmCallFrame, calldata: ByteArray) {   // () -> bytes32
-    if (bytearray_size(calldata) < (4+2*32)) {
+impure func arbsys_eigenCall(_topFrame: EvmCallFrame, calldata: ByteArray) {   // () -> (uint, uint, uint, uint)
+    if (bytearray_size(calldata) != 4+32*4) {
+        asm((159,),) { debugprint };
         evmOp_revert_knownCodePc(address(const::Address_ArbSys), 1, 0, 0);
     }
 
-    let nbytes = bytearray_get256(calldata, 4+32);
+    let arg1 = bytearray_get256(calldata, 4);
+    let arg2 = bytearray_get256(calldata, 4+32);
+    let arg3 = bytearray_get256(calldata, 4+2*32);
+    let arg4 = bytearray_get256(calldata, 4+3*32);
 
-    let innerCalldata = bytearray_extract(calldata, 4+2*32, nbytes);
+    asm((168, arg1, arg2, arg3, arg4),) { debugprint };
+    let (out1, out2, out3, out4) = asm((arg1, arg2, arg3, arg4),) (uint, uint, uint, uint) { ecall };
+    asm((170, out1, out2, out3, out4),) { debugprint };
 
-    asm((165, nbytes, innerCalldata, calldata),) {debugprint};
-    let result = asm(innerCalldata,) bytes32 {ecall};
-    asm((167, result),) {debugprint};
-    if (evmCallStack_setTopFrameMemory(bytearray_set256(bytearray_new(0), 0, uint(result)))) {
-        asm(169, ) {debugprint};
-        evmOp_return(0, 32);
+    if (evmCallStack_setTopFrameMemory(
+            bytearray_set256(
+                bytearray_set256(
+                    bytearray_set256(
+                        bytearray_set256(
+                            bytearray_new(0),
+                            0,
+                            uint(out1)
+                        ),
+                        32,
+                        uint(out2),
+                    ),
+                    64,
+                    uint(out3),
+                ),
+                96,
+                uint(out4),
+            )
+        )) {
+        asm(191, ) { debugprint };
+        evmOp_return(0, 128);
     } else {
-        asm(172, ) {debugprint};
+        asm(194, ) { debugprint };
         evmOp_revert_knownCodePc(address(const::Address_ArbSys), 1, 0, 0);
-    }
+    } 
 }
 
 public impure func arbBLS_txcall() {
