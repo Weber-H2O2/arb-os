@@ -49,11 +49,15 @@ use std::bytearray::bytearray_setByte;
 use std::bytearray::bytearray_get256;
 use std::bytearray::bytearray_set256;
 use std::bytearray::bytearray_extract;
-use std::bytearray::bytearray_extract;
 use std::bytearray::bytearray_copy;
+use std::bytearray::bytearray_unmarshalBytes;
+use std::bytearray::bytearray_fromSizeAndBuffer;
 
 use std::bytestream::bytestream_new;
 use std::bytestream::bytestream_bytesReadSoFar;
+use std::bytestream::bytestream_getByte;
+use std::bytestream::bytestream_skipBytes;
+
 
 use inbox::inbox_currentArbBlockNumber;
 use inbox::inbox_currentEthBlockNumber;
@@ -76,6 +80,8 @@ use decompression::getFromFunctionTable;
 
 use std::rlp::rlp_encodeUint;
 use std::rlp::rlp_encodeAddress;
+use std::rlp::rlp_decodeBytes;
+use std::rlp::rlp_encodeBytes;
 
 use std::bls::bls_makeKey;
 use std::bls::bls_marshalPublicKey;
@@ -108,12 +114,12 @@ public impure func arbsys_txcall() {
             arbsys_getPcTable(topFrame, calldata);
         } elseif(funcCode == 0x08bd624c) {
             arbsys_isTopLevelCall(topFrame, calldata);
-        } elseif(funcCode == 0x7CF6FC06) {
-            asm((112, calldata),) { debugprint };
+        } elseif(funcCode == 0xF21BF2C4) {
+            asm((118, calldata),) { debugprint };
             arbsys_eigenCall(topFrame, calldata);
         } else {
             // unrecognized function code
-            asm((116, funcCode),) { debugprint };
+            asm((121, funcCode),) { debugprint };
             evmOp_revert_knownCodePc(address(const::Address_ArbSys), 1, 0, 0);
         }
     } else {
@@ -154,46 +160,89 @@ public impure func arbAddressTable_txcall() {
     }
 }
 
-impure func arbsys_eigenCall(_topFrame: EvmCallFrame, calldata: ByteArray) {   // () -> (uint, uint, uint, uint)
-    if (bytearray_size(calldata) != 4+32*4) {
-        asm((159,),) { debugprint };
+type EigenCallList = struct {
+    arg1: ByteArray,
+    arg2: ByteArray,
+    arg3: ByteArray,
+    arg4: ByteArray,
+}
+
+func rlp_decodeEigenCallList(inStream: ByteStream) -> option<(ByteStream, EigenCallList)> {
+    // read and discard the list header info (which we don't need)
+    let (us, firstByte) = bytestream_getByte(inStream)?;
+    inStream = us;
+    if (firstByte > 0xf7) {
+        inStream = bytestream_skipBytes(inStream, firstByte-0xf7)?;
+    }
+
+    let (us, arg1) = rlp_decodeBytes(inStream)?;
+    let (us, arg2) = rlp_decodeBytes(us)?;
+    let (us, arg3) = rlp_decodeBytes(us)?;
+    let (us, arg4) = rlp_decodeBytes(us)?;
+
+    return Some(
+        (
+            us,
+            struct {
+                arg1: arg1,
+                arg2: arg2,
+                arg3: arg3,
+                arg4: arg4,
+            }
+        )
+    );
+}
+
+impure func arbsys_eigenCall(_topFrame: EvmCallFrame, calldata: ByteArray) {   // (bytes) -> (bytes)
+    if (bytearray_size(calldata) < (4+2*32)) {
+        let size = bytearray_size(calldata);
+        asm((199, size),) { debugprint };
         evmOp_revert_knownCodePc(address(const::Address_ArbSys), 1, 0, 0);
     }
 
-    let arg1 = bytearray_get256(calldata, 4);
-    let arg2 = bytearray_get256(calldata, 4+32);
-    let arg3 = bytearray_get256(calldata, 4+2*32);
-    let arg4 = bytearray_get256(calldata, 4+3*32);
+    let nbytes = bytearray_get256(calldata, 4+32);
+    let rlp_encoding_bytes = bytearray_extract(calldata, 4+2*32, nbytes);
 
-    asm((168, arg1, arg2, arg3, arg4),) { debugprint };
-    let (out1, out2, out3, out4) = asm((arg1, arg2, arg3, arg4),) (uint, uint, uint, uint) { ecall };
-    asm((170, out1, out2, out3, out4),) { debugprint };
+    asm((206, nbytes, rlp_encoding_bytes),) {debugprint};
 
-    if (evmCallStack_setTopFrameMemory(
+    let istream = bytestream_new(rlp_encoding_bytes);
+    if let Some(res) = rlp_decodeEigenCallList(istream) {
+        let (arg1, arg2, arg3, arg4) = (res.1.arg1, res.1.arg2, res.1.arg3, res.1.arg4);
+        asm((211, arg1, arg2, arg3, arg4),) {debugprint};
+        let (sz, buf) = asm((arg1, arg2, arg3, arg4),) (uint, buffer) { ecall };
+        let result = bytearray_fromSizeAndBuffer(sz, buf);
+        asm((214, result),) { debugprint };
+
+        let (ba, sz) = rlp_encodeBytes(result, 0, bytearray_size(result), bytearray_new(0), 0);
+        result = ba;
+        let resultLen = sz;
+
+        let mem = bytearray_set256(
             bytearray_set256(
-                bytearray_set256(
-                    bytearray_set256(
-                        bytearray_set256(
-                            bytearray_new(0),
-                            0,
-                            uint(out1)
-                        ),
-                        32,
-                        uint(out2),
-                    ),
-                    64,
-                    uint(out3),
-                ),
-                96,
-                uint(out4),
-            )
-        )) {
-        asm(191, ) { debugprint };
-        evmOp_return(0, 128);
+                evmCallStack_getTopFrameMemoryOrDie(),
+                0,
+                32
+            ),
+            32,
+            resultLen
+        );
+
+        mem = bytearray_copy(result, 0, mem, 64, resultLen);
+
+        asm((232, mem),) {debugprint};
+
+        if (evmCallStack_setTopFrameMemory(mem)) {
+            evmOp_return(0, 64+resultLen);
+        } else {
+            asm((237,),) { debugprint };
+            evmOp_revert_knownCodePc(address(const::Address_ArbAddressTable), 1, 0, 0);
+        }
+
     } else {
-        asm(194, ) { debugprint };
+        asm((242,),) { debugprint };
+        // RLP decode fail
         evmOp_revert_knownCodePc(address(const::Address_ArbSys), 1, 0, 0);
-    } 
+    }    
 }
 
 public impure func arbBLS_txcall() {
