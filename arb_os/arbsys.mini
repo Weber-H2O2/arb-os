@@ -161,10 +161,10 @@ public impure func arbAddressTable_txcall() {
 }
 
 type EigenCallList = struct {
+    operator: ByteArray,
     arg1: ByteArray,
     arg2: ByteArray,
     arg3: ByteArray,
-    arg4: ByteArray,
 }
 
 func rlp_decodeEigenCallList(inStream: ByteStream) -> option<(ByteStream, EigenCallList)> {
@@ -175,19 +175,19 @@ func rlp_decodeEigenCallList(inStream: ByteStream) -> option<(ByteStream, EigenC
         inStream = bytestream_skipBytes(inStream, firstByte-0xf7)?;
     }
 
+    let (us, operator) = rlp_decodeBytes(us)?;
     let (us, arg1) = rlp_decodeBytes(inStream)?;
     let (us, arg2) = rlp_decodeBytes(us)?;
     let (us, arg3) = rlp_decodeBytes(us)?;
-    let (us, arg4) = rlp_decodeBytes(us)?;
 
     return Some(
         (
             us,
             struct {
+                operator: operator,
                 arg1: arg1,
                 arg2: arg2,
                 arg3: arg3,
-                arg4: arg4,
             }
         )
     );
@@ -207,9 +207,9 @@ impure func arbsys_eigenCall(_topFrame: EvmCallFrame, calldata: ByteArray) {   /
 
     let istream = bytestream_new(rlp_encoding_bytes);
     if let Some(res) = rlp_decodeEigenCallList(istream) {
-        let (arg1, arg2, arg3, arg4) = (res.1.arg1, res.1.arg2, res.1.arg3, res.1.arg4);
-        asm((211, arg1, arg2, arg3, arg4),) {debugprint};
-        let (sz, buf) = asm((arg1, arg2, arg3, arg4),) (uint, buffer) { ecall };
+        let (operator, arg1, arg2, arg3) = (res1.1.operator, res.1.arg1, res.1.arg2, res.1.arg3);
+        asm((211, operator, arg1, arg2, arg3),) {debugprint};
+        let (sz, buf) = asm((operator, arg1, arg2, arg3),) (uint, buffer) { ecall };
         let result = bytearray_fromSizeAndBuffer(sz, buf);
         asm((214, result),) { debugprint };
 
